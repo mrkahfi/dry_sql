@@ -1,5 +1,5 @@
 use std::fs;
-use tokio_postgres::{Error, NoTls};
+use tokio_postgres::{Config, Error, NoTls};
 
 use clap::Parser;
 
@@ -7,12 +7,16 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+    #[arg(long, default_value_t = String::from("localhost"))]
+    host: String,
+    #[arg(long, default_value_t = String::from("postgres"))]
+    database: String,
     #[arg(long, default_value_t = String::from("postgres"))]
     user: String,
     #[arg(long, default_value_t = String::from("postgres"))]
     password: String,
-    #[arg(long, default_value_t = String::from("54322"))]
-    port: String,
+    #[arg(long, default_value_t = 54322)]
+    port: u16,
     #[arg(long, default_value_t = String::from(""))]
     file_path: String,
 }
@@ -20,18 +24,21 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let args = Args::parse();
+    let host = &args.host;
+    let database = &args.database;
     let user = &args.user;
     let password = &args.password;
     let port = &args.port;
     let file_path = &args.file_path;
 
-    let config = format!(
-        "host=localhost user={} port={} password={}",
-        user, port, password
-    );
-    let config_str = config.as_str();
+    let mut config = Config::new();
+    config.host(host);
+    config.user(user);
+    config.password(password);
+    config.dbname(database);
+    config.port(*port);
 
-    let (mut client, connection) = tokio_postgres::connect(config_str, NoTls).await?;
+    let (mut client, connection) = config.connect(NoTls).await?;
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
