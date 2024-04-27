@@ -18,6 +18,14 @@ While some SQL script linter have benefits to check for SQL statement for errors
 ## Use case example
 The most common use case would be obviously to validate migration SQL scripts in the pipeline :). Of course, you can use it to mimick your SQL scripts anywhere else.
 
+### How to Use
+
+On the terminal:
+
+```bash
+dry_sql --host <host> --port <port> --user <username> --password <password> --file-path <path/to/your/sql/script>
+```
+
 ## Stack
 Written in Rust. 
 
