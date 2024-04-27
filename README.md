@@ -1,5 +1,5 @@
 # DRY SQL
-__***Dry run your SQL scripts***__
+__***CLI tool to dry run your SQL scripts***__
 
 ## Background
 This tool was created when I was setting up some database migrations stuffs in the CI pipeline. The migration should be applied on main branch. It's mandatory that specific migrations in a the pull request get successfully applied before the app is deployed.
