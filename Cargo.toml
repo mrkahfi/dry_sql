@@ -1,6 +1,6 @@
 [package]
 name = "dry_sql"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = [ "Muhammad R Kahfi" ]
 description = "CLI tool to dry-run your SQL scripts"
@@ -11,5 +11,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap =  { version = "4.5.4", features = ["derive"] }
+console = "0.15.8"
+indicatif = "0.17.8"
 tokio = { version = "1.37.0", features = ["full"] }
 tokio-postgres = "0.7.10"

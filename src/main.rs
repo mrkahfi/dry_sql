@@ -1,25 +1,11 @@
-use std::fs;
-use tokio_postgres::{Config, Error, NoTls};
+mod types;
 
 use clap::Parser;
-
-/// Simple program to greet a person
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(long, default_value_t = String::from("localhost"))]
-    host: String,
-    #[arg(long, default_value_t = String::from("postgres"))]
-    database: String,
-    #[arg(long, default_value_t = String::from("postgres"))]
-    user: String,
-    #[arg(long, default_value_t = String::from("postgres"))]
-    password: String,
-    #[arg(long, default_value_t = 54322)]
-    port: u16,
-    #[arg(long, default_value_t = String::from(""))]
-    file_path: String,
-}
+use console::style;
+use std::fs;
+use std::fs::read_dir;
+use tokio_postgres::{Config, Error, NoTls};
+use types::{Args, PathParam};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -29,7 +15,13 @@ async fn main() -> Result<(), Error> {
     let user = &args.user;
     let password = &args.password;
     let port = &args.port;
-    let file_path = &args.file_path;
+    let file = &args.file;
+    let dir = &args.dir;
+
+    let path = match check_file_or_dir(file, dir) {
+        Ok(path) => path,
+        Err(_) => PathParam::None,
+    };
 
     let mut config = Config::new();
     config.host(host);
@@ -42,24 +34,72 @@ async fn main() -> Result<(), Error> {
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
+            eprintln!("{} Connection error: {}", style("✕").red(), e);
         }
     });
 
-    println!("file: {}", file_path);
+    match path {
+        PathParam::File(file) => {
+            println!("path: {}", file);
 
-    let content = fs::read_to_string(file_path).expect("Should have been able to read the file");
+            let content = fs::read_to_string(file).expect("Should have been able to read the file");
+            let prepared_statement = format!("BEGIN; {} ROLLBACK;", content);
+            let transaction = client.transaction().await?;
+            let result = transaction.batch_execute(&prepared_statement).await;
 
-    let prepared_statement = format!("BEGIN; {} ROLLBACK;", content);
+            match result {
+                Ok(_) => println!("{} Scripts look good!", style("√").green()),
+                Err(err) => println!(
+                    "{} Scripts contain error(s): {}",
+                    style("✕").red(),
+                    err.to_string()
+                ),
+            }
+        }
+        PathParam::Dir(dir) => {
+            // Read directory entries
+            let entries = read_dir(dir).unwrap();
 
-    let transaction = client.transaction().await?;
+            for entry in entries {
+                let entry = entry.unwrap();
 
-    let result = transaction.batch_execute(&prepared_statement).await;
+                if entry.file_type().unwrap().is_file() {
+                    let file = entry.path();
+                    let content =
+                        fs::read_to_string(file).expect("Should have been able to read the file");
+                    let prepared_statement = format!("BEGIN; {} ROLLBACK;", content);
+                    let transaction = client.transaction().await?;
+                    let result = transaction.batch_execute(&prepared_statement).await;
 
-    match result {
-        Ok(_) => println!("Successfully executed script"),
-        Err(err) => println!("Failed executing script: {}", err.to_string()),
+                    match result {
+                        Ok(_) => println!("{} Scripts look good!", style("√").green()),
+                        Err(err) => println!(
+                            "{} Scripts contain error(s): {}",
+                            style("✕").red(),
+                            err.to_string()
+                        ),
+                    }
+                }
+            }
+        }
+        PathParam::None => (),
     }
 
     Ok(())
+}
+
+fn check_file_or_dir<'a>(file: &'a String, dir: &'a String) -> Result<PathParam<'a>, String> {
+    if file.is_empty() && dir.is_empty() {
+        return Err(String::from("Both --file or --dir are unset"));
+    }
+
+    if !file.is_empty() && !dir.is_empty() {
+        return Err(String::from("Provide only --file or --dir"));
+    }
+
+    if !file.is_empty() {
+        return Ok(PathParam::File(&file));
+    } else {
+        return Ok(PathParam::Dir(&dir));
+    }
 }
