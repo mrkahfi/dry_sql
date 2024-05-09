@@ -24,7 +24,7 @@ if you want to dry-run a SQL file.
 dry_sql --host <host> --port <port> --user <username> --password <password> --file <path/to/your/sql/script>
 ```
 
-if you want to dry-run a SQL file.
+if you want to dry-run multiple a SQL inside a folder.
 
 ```bash
 dry_sql --host <host> --port <port> --user <username> --password <password> --dir <path/to/your/sql/script/foder>
